@@ -1,5 +1,6 @@
-import React, { useRef } from "react";
+import React from "react";
 import Helmet from "react-helmet";
+import L from "leaflet";
 import axios from "axios";
 
 import Layout from "components/Layout";
@@ -19,6 +20,7 @@ const IndexPage = () => {
    * @description Fires a callback once the page renders
    * @example Here this is and example of being used to zoom in and set a popup on load
    */
+
   async function mapEffect({ leafletElement: map } = {}) {
     let response;
 
@@ -31,6 +33,7 @@ const IndexPage = () => {
 
     const { data = [] } = response;
   }
+
   const mapSettings = {
     center: CENTER,
     defaultBaseMap: "OpenStreetMap",
@@ -44,7 +47,7 @@ const IndexPage = () => {
         <title>Home Page</title>
       </Helmet>
 
-      <Map {...mapSettings}></Map>
+      <Map {...mapSettings} />
 
       <Container type="content" className="text-center home-start"></Container>
     </Layout>
