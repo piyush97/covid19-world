@@ -1,7 +1,9 @@
 import React from "react";
 import Helmet from "react-helmet";
-import L from "leaflet";
-import axios from "axios";
+
+import { promiseToFlyTo, geoJsonToMarkers, clearMapLayers } from "lib/map";
+import { trackerLocationsToGeoJson } from "lib/coronavirus";
+import { useCoronavirusTracker } from "hooks";
 
 import Layout from "components/Layout";
 import Container from "components/Container";
@@ -22,87 +24,60 @@ const IndexPage = () => {
    */
 
   async function mapEffect({ leafletElement: map } = {}) {
-    let response;
+    if (!map || locations.length === 0) return;
 
-    try {
-      response = await axios.get("https://corona.lmao.ninja/countries");
-    } catch (e) {
-      console.log(`Failed to fetch countries: ${e.message}`, e);
-      return;
-    }
+    clearMapLayers({
+      map,
+      excludeByName: ["Mapbox"]
+    });
 
-    const { data = [] } = response;
-    const hasData = Array.isArray(data) && data.length > 0;
+    const locationsGeoJson = trackerLocationsToGeoJson(locations);
 
-    if (!hasData) return;
+    const locationsGeoJsonLayers = geoJsonToMarkers(locationsGeoJson, {
+      featureToHtml: ({ properties = {} } = {}) => {
+        const {
+          country,
+          latest = {},
+          country_population: population,
+          last_updated
+        } = properties;
+        const { confirmed, deaths, recovered } = latest;
+        const rate = confirmed / population;
 
-    const geoJson = {
-      type: "FeatureCollection",
-      features: data.map((country = {}) => {
-        const { countryInfo = {} } = country;
-        const { lat, long: lng } = countryInfo;
-        return {
-          type: "Feature",
-          properties: {
-            ...country
-          },
-          geometry: {
-            type: "Point",
-            coordinates: [lng, lat]
-          }
-        };
-      })
-    };
+        let confirmedString = `${confirmed}`;
 
-    const geoJsonLayers = new L.GeoJSON(geoJson, {
-      pointToLayer: (feature = {}, latlng) => {
-        const { properties = {} } = feature;
-        let updatedFormatted;
-        let casesString;
-
-        const { country, updated, cases, deaths, recovered } = properties;
-
-        casesString = `${cases}`;
-
-        if (cases > 1000) {
-          casesString = `${casesString.slice(0, -3)}k+`;
+        if (confirmed > 1000) {
+          confirmedString = `${confirmedString.slice(0, -3)}k+`;
         }
 
-        if (updated) {
-          updatedFormatted = new Date(updated).toLocaleString();
-        }
-
-        const html = `
+        return `
           <span class="icon-marker">
             <span class="icon-marker-tooltip">
               <h2>${country}</h2>
               <ul>
-                <li><strong>Confirmed:</strong> ${cases}</li>
+                <li><strong>Confirmed:</strong> ${confirmed}</li>
                 <li><strong>Deaths:</strong> ${deaths}</li>
                 <li><strong>Recovered:</strong> ${recovered}</li>
-                <li><strong>Last Update:</strong> ${updatedFormatted}</li>
+                <li><strong>Population:</strong> ${population}</li>
+                <li><strong>Last Update:</strong> ${last_updated}</li>
               </ul>
             </span>
-            ${casesString}
+            ${confirmedString}
           </span>
         `;
-
-        return L.marker(latlng, {
-          icon: L.divIcon({
-            className: "icon",
-            html
-          }),
-          riseOnHover: true
-        });
       }
     });
 
-    geoJsonLayers.addTo(map);
+    const bounds = locationsGeoJsonLayers.getBounds();
+
+    locationsGeoJsonLayers.addTo(map);
+
+    map.fitBounds(bounds);
   }
 
   const mapSettings = {
     center: CENTER,
-    defaultBaseMap: "OpenStreetMap",
+    defaultBaseMap: "Mapbox",
     zoom: DEFAULT_ZOOM,
     mapEffect
   };

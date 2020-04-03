@@ -1,7 +1,7 @@
 header {
   width: 100%;
   color: $white;
-  background-color: $gatsby-purple;
+  background-color: $blue-grey-900;
 
   .container {
     display: flex;
@@ -11,8 +11,10 @@ header {
   }
 
   ul {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 -0.7em;
     list-style: none;
-    margin: 0;
     padding: 0;
   }
 
@@ -21,10 +23,15 @@ header {
   }
 
   a {
-    display: block;
-    color: lighten($gatsby-purple, 50);
     text-decoration: none;
     padding: 0 0.5em;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: $blue-grey-400;
+  }
+  svg {
+    margin-right: 0.4em;
   }
 
   p {

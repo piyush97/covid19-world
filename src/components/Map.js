@@ -1,69 +1,99 @@
-import React, { useRef } from "react";
-import PropTypes from "prop-types";
-import { Map as BaseMap, TileLayer, ZoomControl } from "react-leaflet";
+import L from "leaflet";
 
-import { useConfigureLeaflet, useMapServices, useRefEffect } from "hooks";
-import { isDomAvailable } from "lib/util";
+/**
+ * geoJsonToMarkers
+ */
 
-const Map = props => {
-  const {
-    children,
-    className,
-    defaultBaseMap = "OpenStreetMap",
-    mapEffect,
-    ...rest
-  } = props;
-
-  const mapRef = useRef();
-
-  useConfigureLeaflet();
-
-  useRefEffect({
-    ref: mapRef,
-    effect: mapEffect
+export function geoJsonToMarkers(geoJson, options) {
+  return new L.GeoJSON(geoJson, {
+    pointToLayer: pointToLayerMarkerCreator(options)
   });
+}
 
-  const services = useMapServices({
-    names: ["OpenStreetMap"]
-  });
-  const basemap = services.find(service => service.name === defaultBaseMap);
+/**
+ * clearMapLayers
+ */
 
-  let mapClassName = `map`;
+export function pointToLayerMarkerCreator({ featureToHtml } = {}) {
+  return function(feature = {}, latlng) {
+    let html = `<span class="icon-marker"></span>`;
 
-  if (className) {
-    mapClassName = `${mapClassName} ${className}`;
-  }
+    if (typeof featureToHtml === "function") {
+      html = featureToHtml(feature);
+    }
 
-  if (!isDomAvailable()) {
-    return (
-      <div className={mapClassName}>
-        <p className="map-loading">Loading map...</p>
-      </div>
-    );
-  }
-
-  const mapSettings = {
-    className: "map-base",
-    zoomControl: false,
-    ...rest
+    return L.marker(latlng, {
+      icon: L.divIcon({
+        className: "icon",
+        html
+      }),
+      riseOnHover: true
+    });
   };
+}
 
-  return (
-    <div className={mapClassName}>
-      <BaseMap ref={mapRef} {...mapSettings} style={{ height: "92vh" }}>
-        {children}
-        {basemap && <TileLayer {...basemap} />}
-        <ZoomControl position="bottomright" />
-      </BaseMap>
-    </div>
-  );
-};
+/**
+ * clearMapLayers
+ */
 
-Map.propTypes = {
-  children: PropTypes.node,
-  className: PropTypes.string,
-  defaultBaseMap: PropTypes.string,
-  mapEffect: PropTypes.func
-};
+export function clearMapLayers({ map, excludeByName = [] }) {
+  if (!map || typeof map.eachLayer !== "function") return;
+  const layersRemoved = [];
 
-export default Map;
+  map.eachLayer((layer = {}) => {
+    const { options = {} } = layer;
+    const { name } = options;
+
+    if (name && excludeByName.includes(name)) return;
+
+    layersRemoved.push(layer);
+
+    map.removeLayer(layer);
+  });
+
+  return layersRemoved;
+}
+
+/**
+ * promiseToFlyTo
+ * @description
+ */
+
+export function promiseToFlyTo(map, { zoom, center }) {
+  return new Promise((resolve, reject) => {
+    const baseError = "Failed to fly to area";
+
+    if (!map.flyTo) {
+      reject(`${baseError}: no flyTo method on map`);
+    }
+
+    if (typeof zoom !== "number") {
+      reject(`${baseError}: zoom invalid number ${zoom}`);
+    }
+
+    const mapCenter = center || map.getCenter();
+    const mapZoom = zoom || map.getZoom();
+
+    map.flyTo(mapCenter, mapZoom, {
+      duration: 2
+    });
+
+    map.once("moveend", () => {
+      resolve();
+    });
+  });
+}
+
+/**
+ * getCurrentLocation
+ * @description
+ */
+
+export function getCurrentLocation() {
+  return new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(err)
+    );
+  });
+}
