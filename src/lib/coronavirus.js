@@ -1,17 +1,32 @@
+import { getBoundsOfCountryByIsoAlpha2Code } from "osm-countries-bounds";
+import { getEmojiFlag } from "countries-list";
+
 /**
  * trackerLocationToFeature
  * @param {object} location - Coronavirus Tracker location object
  */
 
 export function trackerLocationToFeature(location = {}) {
-  const { coordinates = {} } = location;
-  const { latitude, longitude } = coordinates;
-  const lat = latitude && parseFloat(latitude);
-  const lng = longitude && parseFloat(longitude);
+  const { countryInfo = {} } = location;
+  const { lat, long: lng, iso2 } = countryInfo;
+
+  const countryCode = iso2;
+
+  let countryBounds;
+  let flag;
+
+  if (typeof countryCode === "string") {
+    countryBounds = getBoundsOfCountryByIsoAlpha2Code(countryCode);
+    flag = getEmojiFlag(countryCode);
+  }
+
   return {
     type: "Feature",
     properties: {
-      ...location
+      ...location,
+      countryCode,
+      countryBounds,
+      flag
     },
     geometry: {
       type: "Point",
@@ -34,4 +49,33 @@ export function trackerLocationsToGeoJson(locations = []) {
       trackerLocationToFeature(location)
     )
   };
+}
+
+/**
+ * trackerFeatureToHtmlMarker
+ */
+
+export function trackerFeatureToHtmlMarker({ properties = {} } = {}) {
+  const { country, updated, flag, cases, deaths, recovered } = properties;
+
+  let casesString = `${cases}`;
+
+  if (cases > 1000) {
+    casesString = `${casesString.slice(0, -3)}k+`;
+  }
+
+  return `
+    <span class="icon-marker">
+      <span class="icon-marker-tooltip">
+        <h2>${flag} ${country}</h2>
+        <ul>
+          <li><strong>Confirmed:</strong> ${cases}</li>
+          <li><strong>Deaths:</strong> ${deaths}</li>
+          <li><strong>Recovered:</strong> ${recovered}</li>
+          <li><strong>Last Update:</strong> ${updated}</li>
+        </ul>
+      </span>
+      ${casesString}
+    </span>
+  `;
 }

@@ -1,8 +1,12 @@
 import React from "react";
 import Helmet from "react-helmet";
+import L from "leaflet";
 
 import { promiseToFlyTo, geoJsonToMarkers, clearMapLayers } from "lib/map";
-import { trackerLocationsToGeoJson } from "lib/coronavirus";
+import {
+  trackerLocationsToGeoJson,
+  trackerFeatureToHtmlMarker
+} from "lib/coronavirus";
 import { useCoronavirusTracker } from "hooks";
 
 import Layout from "components/Layout";
@@ -14,9 +18,14 @@ const LOCATION = {
   lng: 0
 };
 const CENTER = [LOCATION.lat, LOCATION.lng];
-const DEFAULT_ZOOM = 2;
+const DEFAULT_ZOOM = 1;
 
 const IndexPage = () => {
+  const { data = [] } = useCoronavirusTracker({
+    api: "countries"
+  });
+  const hasData = Array.isArray(data) && data.length > 0;
+
   /**
    * mapEffect
    * @description Fires a callback once the page renders
@@ -24,48 +33,18 @@ const IndexPage = () => {
    */
 
   async function mapEffect({ leafletElement: map } = {}) {
-    if (!map || locations.length === 0) return;
+    if (!map || !hasData) return;
 
     clearMapLayers({
       map,
       excludeByName: ["Mapbox"]
     });
 
-    const locationsGeoJson = trackerLocationsToGeoJson(locations);
+    const locationsGeoJson = trackerLocationsToGeoJson(data);
 
     const locationsGeoJsonLayers = geoJsonToMarkers(locationsGeoJson, {
-      featureToHtml: ({ properties = {} } = {}) => {
-        const {
-          country,
-          latest = {},
-          country_population: population,
-          last_updated
-        } = properties;
-        const { confirmed, deaths, recovered } = latest;
-        const rate = confirmed / population;
-
-        let confirmedString = `${confirmed}`;
-
-        if (confirmed > 1000) {
-          confirmedString = `${confirmedString.slice(0, -3)}k+`;
-        }
-
-        return `
-          <span class="icon-marker">
-            <span class="icon-marker-tooltip">
-              <h2>${country}</h2>
-              <ul>
-                <li><strong>Confirmed:</strong> ${confirmed}</li>
-                <li><strong>Deaths:</strong> ${deaths}</li>
-                <li><strong>Recovered:</strong> ${recovered}</li>
-                <li><strong>Population:</strong> ${population}</li>
-                <li><strong>Last Update:</strong> ${last_updated}</li>
-              </ul>
-            </span>
-            ${confirmedString}
-          </span>
-        `;
-      }
+      onClick: handleOnMarkerClick,
+      featureToHtml: trackerFeatureToHtmlMarker
     });
 
     const bounds = locationsGeoJsonLayers.getBounds();
@@ -73,6 +52,30 @@ const IndexPage = () => {
     locationsGeoJsonLayers.addTo(map);
 
     map.fitBounds(bounds);
+  }
+
+  function handleOnMarkerClick({ feature = {} } = {}, event = {}) {
+    const { target = {} } = event;
+    const { _map: map = {} } = target;
+
+    const { geometry = {}, properties = {} } = feature;
+    const { coordinates } = geometry;
+    const { countryBounds, countryCode } = properties;
+
+    promiseToFlyTo(map, {
+      center: {
+        lat: coordinates[1],
+        lng: coordinates[0]
+      },
+      zoom: 3
+    });
+
+    if (countryBounds && countryCode !== "US") {
+      const boundsGeoJsonLayer = new L.GeoJSON(countryBounds);
+      const boundsGeoJsonLayerBounds = boundsGeoJsonLayer.getBounds();
+
+      map.fitBounds(boundsGeoJsonLayerBounds);
+    }
   }
 
   const mapSettings = {
