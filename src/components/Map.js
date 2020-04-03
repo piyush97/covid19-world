@@ -1,12 +1,18 @@
-import React, { useRef } from 'react';
-import PropTypes from 'prop-types';
-import { Map as BaseMap, TileLayer, ZoomControl } from 'react-leaflet';
+import React, { useRef } from "react";
+import PropTypes from "prop-types";
+import { Map as BaseMap, TileLayer, ZoomControl } from "react-leaflet";
 
-import { useConfigureLeaflet, useMapServices, useRefEffect } from 'hooks';
-import { isDomAvailable } from 'lib/util';
+import { useConfigureLeaflet, useMapServices, useRefEffect } from "hooks";
+import { isDomAvailable } from "lib/util";
 
-const Map = ( props ) => {
-  const { children, className, defaultBaseMap = 'OpenStreetMap', mapEffect, ...rest } = props;
+const Map = props => {
+  const {
+    children,
+    className,
+    defaultBaseMap = "OpenStreetMap",
+    mapEffect,
+    ...rest
+  } = props;
 
   const mapRef = useRef();
 
@@ -18,17 +24,17 @@ const Map = ( props ) => {
   });
 
   const services = useMapServices({
-    names: ['OpenStreetMap']
+    names: ["OpenStreetMap"]
   });
-  const basemap = services.find(( service ) => service.name === defaultBaseMap );
+  const basemap = services.find(service => service.name === defaultBaseMap);
 
   let mapClassName = `map`;
 
-  if ( className ) {
+  if (className) {
     mapClassName = `${mapClassName} ${className}`;
   }
 
-  if ( !isDomAvailable()) {
+  if (!isDomAvailable()) {
     return (
       <div className={mapClassName}>
         <p className="map-loading">Loading map...</p>
@@ -37,16 +43,16 @@ const Map = ( props ) => {
   }
 
   const mapSettings = {
-    className: 'map-base',
+    className: "map-base",
     zoomControl: false,
     ...rest
   };
 
   return (
     <div className={mapClassName}>
-      <BaseMap ref={mapRef} {...mapSettings}>
-        { children }
-        { basemap && <TileLayer {...basemap} /> }
+      <BaseMap ref={mapRef} {...mapSettings} style={{ height: "92vh" }}>
+        {children}
+        {basemap && <TileLayer {...basemap} />}
         <ZoomControl position="bottomright" />
       </BaseMap>
     </div>
